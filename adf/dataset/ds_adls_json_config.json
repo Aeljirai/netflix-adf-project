@@ -1,0 +1,33 @@
+{
+	"name": "ds_adls_json_config",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_adls_netflix",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "movielens_files.json",
+				"fileSystem": "config"
+			}
+		},
+		"schema": {
+			"type": "object",
+			"properties": {
+				"source_folder": {
+					"type": "string"
+				},
+				"file_name": {
+					"type": "string"
+				},
+				"table_name": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

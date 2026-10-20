@@ -1,0 +1,15 @@
+{
+	"name": "alaaNetflixDF",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "10e6fd5f-13e6-415c-a4c6-6dfdbcc7797b",
+		"tenantId": "63a6fd07-4968-445b-ab22-59dc281afb4f"
+	}
+}

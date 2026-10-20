@@ -1,0 +1,95 @@
+{
+	"name": "df_movies_bronze_to_silve",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_adls_csv_generic",
+						"type": "DatasetReference"
+					},
+					"name": "srcMovies"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_adls_parquet_generic",
+						"type": "DatasetReference"
+					},
+					"name": "sinkSilverMovies"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_adls_parquet_generic",
+						"type": "DatasetReference"
+					},
+					"name": "sinkSilverMovieGenres"
+				}
+			],
+			"transformations": [
+				{
+					"name": "castTypes"
+				},
+				{
+					"name": "splitGenres"
+				},
+				{
+					"name": "flattenGenres"
+				},
+				{
+					"name": "filterNoGenre"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          movieId as string,",
+				"          title as string,",
+				"          genres as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> srcMovies",
+				"srcMovies cast(output(",
+				"          movieId as integer",
+				"     ),",
+				"     errors: true) ~> castTypes",
+				"castTypes derive(genre_list = split(genres, '|'),",
+				"          release_year = toInteger(regexExtract(title, '\\\\((\\\\d{4})\\\\)\\\\s*$', 1)),",
+				"          clean_title = trim(regexReplace(title, '\\\\s*\\\\(\\\\d{4}\\\\)\\\\s*$', ''))) ~> splitGenres",
+				"splitGenres foldDown(unroll(genre_list),",
+				"     mapColumn(",
+				"          movieId,",
+				"          genre = genre_list",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> flattenGenres",
+				"flattenGenres filter(genre != '(no genres listed)') ~> filterNoGenre",
+				"splitGenres sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     mapColumn(",
+				"          {movie-Id} = movieId,",
+				"          Title = clean_title,",
+				"          genres,",
+				"          release_year",
+				"     )) ~> sinkSilverMovies",
+				"filterNoGenre sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkSilverMovieGenres"
+			]
+		}
+	}
+}

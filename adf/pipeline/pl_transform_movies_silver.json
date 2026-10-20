@@ -1,0 +1,84 @@
+{
+	"name": "pl_transform_movies_silver",
+	"properties": {
+		"activities": [
+			{
+				"name": "df_movies_to_silver",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_movies_bronze_to_silve",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"srcMovies": {
+								"container": "bronze",
+								"directory": "movielens/movies/ingest_date=2026-10-18",
+								"file_name": "movies.csv"
+							},
+							"sinkSilverMovies": {
+								"container": "silver",
+								"directory": "movielens/movies"
+							},
+							"sinkSilverMovieGenres": {
+								"container": "silver",
+								"directory": "movielens/movie_genres"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			},
+			{
+				"name": "df_ratings_to_silver",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_ratings_bronze_to_silver",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"srcRatings": {
+								"container": "btonze",
+								"directory": "movielens/ratings/ingest_date=2026-10-18",
+								"file_name": "ratings.csv"
+							},
+							"sinkSilverRatings": {
+								"container": "silver",
+								"directory": "movielens/ratings"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-10-20T03:00:15Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,80 @@
+{
+	"name": "df_ratings_bronze_to_silver",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_adls_csv_generic",
+						"type": "DatasetReference"
+					},
+					"name": "srcRatings"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_adls_parquet_generic",
+						"type": "DatasetReference"
+					},
+					"name": "sinkSilverRatings"
+				}
+			],
+			"transformations": [
+				{
+					"name": "castTypes"
+				},
+				{
+					"name": "deriveColumns"
+				},
+				{
+					"name": "assertQuality"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          userId as string,",
+				"          movieId as string,",
+				"          rating as string,",
+				"          timestamp as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> srcRatings",
+				"srcRatings cast(output(",
+				"          userId as integer,",
+				"          movieId as integer,",
+				"          rating as double,",
+				"          timestamp as long",
+				"     ),",
+				"     errors: true) ~> castTypes",
+				"castTypes derive(rated_at = toTimestamp(timestamp * 1000L),",
+				"          rating_year = year(toTimestamp(timestamp * 1000L)),",
+				"          rated_date = toDate(toTimestamp(timestamp * 1000L)),",
+				"          rated_day_of_week = dayOfWeek(toTimestamp(timestamp * 1000L)),",
+				"          rated_day_name = toString(toTimestamp(timestamp * 1000L), 'EEEE')) ~> deriveColumns",
+				"deriveColumns assert(expectTrue(rating >= 0.5 && rating <= 5.0, false, 'valid_rating'),",
+				"     expectTrue(!isNull(userId) && !isNull(movieId), false, 'ids_not_null')) ~> assertQuality",
+				"assertQuality sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     mapColumn(",
+				"          user_Id = userId,",
+				"          movie_Id = movieId,",
+				"          rating,",
+				"          rated_at,",
+				"          rating_year,",
+				"          rated_date,",
+				"          rated_day_of_week,",
+				"          rated_day_name",
+				"     )) ~> sinkSilverRatings"
+			]
+		}
+	}
+}

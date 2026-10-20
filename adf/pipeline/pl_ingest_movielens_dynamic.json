@@ -1,0 +1,241 @@
+{
+	"name": "pl_ingest_movielens_dynamic",
+	"properties": {
+		"activities": [
+			{
+				"name": "lookup_file_list",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_adls_json_config",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Foreach_File",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "lookup_file_list",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('lookup_file_list').output.value",
+						"type": "Expression"
+					},
+					"batchCount": 2,
+					"activities": [
+						{
+							"name": "get_file_metadata",
+							"type": "GetMetadata",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "ds_adls_csv_generic",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "landing",
+										"directory": "@item().source_folder",
+										"file_name": "@item().file_name"
+									}
+								},
+								"fieldList": [
+									"exists"
+								],
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							}
+						},
+						{
+							"name": "if_file_exists",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "get_file_metadata",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@activity('get_file_metadata').output.exists",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "skipped_file",
+										"type": "AppendVariable",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "skipped_files",
+											"value": {
+												"value": "@item().file_name",
+												"type": "Expression"
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "copy_file_to_bronze",
+										"type": "Copy",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 1,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "DelimitedTextSource",
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												},
+												"formatSettings": {
+													"type": "DelimitedTextReadSettings"
+												}
+											},
+											"sink": {
+												"type": "DelimitedTextSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "DelimitedTextWriteSettings",
+													"quoteAllText": true,
+													"fileExtension": ".txt"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "ds_adls_csv_generic",
+												"type": "DatasetReference",
+												"parameters": {
+													"container": "landing",
+													"directory": "@item().source_folder",
+													"file_name": "@item().file_name"
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "ds_adls_csv_generic",
+												"type": "DatasetReference",
+												"parameters": {
+													"container": "bronze",
+													"directory": "@concat('movielens/', item().table_name, '/ingest_date=', formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd'))",
+													"file_name": "@item().file_name"
+												}
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "if_any_skipped",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Foreach_File",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(length(variables('skipped_files')), 0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "fail_missing_files",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat('Ingestion finished, but these source files were missing in landing: ', join(variables('skipped_files'), ', '))",
+									"type": "Expression"
+								},
+								"errorCode": "MISSING_SOURCE_FILES"
+							}
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"skipped_files": {
+				"type": "Array"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-18T15:27:51Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
