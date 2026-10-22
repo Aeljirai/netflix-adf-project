@@ -37,6 +37,70 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/pl_build_gold_aggregates')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_gold_aggregates_run",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_gold_aggregates",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"srcRatings": {
+										"container": "silver",
+										"directory": "movielens/ratings"
+									},
+									"srcMovies": {
+										"container": "silver",
+										"directory": "movielens/movies"
+									},
+									"srcGenres": {
+										"container": "silver",
+										"directory": "movielens/movie_genres"
+									},
+									"sinkAggMovieStats": {
+										"schema_name": "gold",
+										"table_name": "agg_movie_stats"
+									},
+									"sinkAggGenreYear": {
+										"schema_name": "gold",
+										"table_name": "agg_genre_year"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_gold_aggregates')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_copy_movies_landing_to_bronze')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -426,6 +490,343 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/ds_adls_json_config')]",
 				"[concat(variables('factoryId'), '/datasets/ds_adls_csv_generic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_load_gold_dims')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "copy_dim_movie",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "ParquetSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "movielens/movies",
+									"wildcardFileName": "*.parquet",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "ParquetReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "TRUNCATE TABLE gold.dim_movie",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "movie-Id",
+											"type": "Int32",
+											"physicalType": "INT32"
+										},
+										"sink": {
+											"name": "movie_id",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "Title",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "title",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "release_year",
+											"type": "Int32",
+											"physicalType": "INT32"
+										},
+										"sink": {
+											"name": "release_year",
+											"type": "Int16",
+											"physicalType": "smallint"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "silver",
+									"directory": "movielens/movies"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_azuresql_table_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema_name": "gold",
+									"table_name": "dim_movie"
+								}
+							}
+						]
+					},
+					{
+						"name": "copy_movie_genre",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "ParquetSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "movielens/movie_genres",
+									"wildcardFileName": "*.parquet",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "ParquetReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "TRUNCATE TABLE gold.movie_genre",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "movieId",
+											"type": "Int32",
+											"physicalType": "INT32"
+										},
+										"sink": {
+											"name": "movie_id",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "genre",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "genre",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "silver",
+									"directory": "movielens/movie_genres"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_azuresql_table_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema_name": "gold",
+									"table_name": "movie_genre"
+								}
+							}
+						]
+					},
+					{
+						"name": "copy_fact_rating",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "ParquetSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "movielens/ratings",
+									"wildcardFileName": "*.parquet",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "ParquetReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "TRUNCATE TABLE gold.fact_rating",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "user_Id",
+											"type": "Int32",
+											"physicalType": "INT32"
+										},
+										"sink": {
+											"name": "user_id",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "movie_Id",
+											"type": "Int32",
+											"physicalType": "INT32"
+										},
+										"sink": {
+											"name": "movie_id",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "rated_date",
+											"type": "DateTime",
+											"physicalType": "DATE"
+										},
+										"sink": {
+											"name": "rated_date",
+											"type": "Date",
+											"physicalType": "date"
+										}
+									},
+									{
+										"source": {
+											"name": "rated_at",
+											"type": "DateTime",
+											"physicalType": "INT96"
+										},
+										"sink": {
+											"name": "rated_at",
+											"type": "DateTime",
+											"physicalType": "datetime2"
+										}
+									},
+									{
+										"source": {
+											"name": "rating",
+											"type": "Double",
+											"physicalType": "DOUBLE"
+										},
+										"sink": {
+											"name": "rating",
+											"type": "Decimal",
+											"physicalType": "decimal",
+											"scale": 1,
+											"precision": 2
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "silver",
+									"directory": "movielens/ratings"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_azuresql_table_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema_name": "gold",
+									"table_name": "fact_rating"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]",
+				"[concat(variables('factoryId'), '/datasets/ds_azuresql_table_generic')]"
 			]
 		},
 		{
@@ -855,531 +1256,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/df_movies_bronze_to_silve')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "ds_adls_csv_generic",
-								"type": "DatasetReference"
-							},
-							"name": "srcMovies"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "ds_adls_parquet_generic",
-								"type": "DatasetReference"
-							},
-							"name": "sinkSilverMovies"
-						},
-						{
-							"dataset": {
-								"referenceName": "ds_adls_parquet_generic",
-								"type": "DatasetReference"
-							},
-							"name": "sinkSilverMovieGenres"
-						}
-					],
-					"transformations": [
-						{
-							"name": "castTypes"
-						},
-						{
-							"name": "splitGenres"
-						},
-						{
-							"name": "flattenGenres"
-						},
-						{
-							"name": "filterNoGenre"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          movieId as string,",
-						"          title as string,",
-						"          genres as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> srcMovies",
-						"srcMovies cast(output(",
-						"          movieId as integer",
-						"     ),",
-						"     errors: true) ~> castTypes",
-						"castTypes derive(genre_list = split(genres, '|'),",
-						"          release_year = toInteger(regexExtract(title, '\\\\((\\\\d{4})\\\\)\\\\s*$', 1)),",
-						"          clean_title = trim(regexReplace(title, '\\\\s*\\\\(\\\\d{4}\\\\)\\\\s*$', ''))) ~> splitGenres",
-						"splitGenres foldDown(unroll(genre_list),",
-						"     mapColumn(",
-						"          movieId,",
-						"          genre = genre_list",
-						"     ),",
-						"     skipDuplicateMapInputs: false,",
-						"     skipDuplicateMapOutputs: false) ~> flattenGenres",
-						"flattenGenres filter(genre != '(no genres listed)') ~> filterNoGenre",
-						"splitGenres sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     format: 'parquet',",
-						"     truncate: true,",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     mapColumn(",
-						"          {movie-Id} = movieId,",
-						"          Title = clean_title,",
-						"          genres,",
-						"          release_year",
-						"     )) ~> sinkSilverMovies",
-						"filterNoGenre sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     format: 'parquet',",
-						"     truncate: true,",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> sinkSilverMovieGenres"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_adls_csv_generic')]",
-				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/df_ratings_bronze_to_silver')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "ds_adls_csv_generic",
-								"type": "DatasetReference"
-							},
-							"name": "srcRatings"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "ds_adls_parquet_generic",
-								"type": "DatasetReference"
-							},
-							"name": "sinkSilverRatings"
-						}
-					],
-					"transformations": [
-						{
-							"name": "castTypes"
-						},
-						{
-							"name": "deriveColumns"
-						},
-						{
-							"name": "assertQuality"
-						}
-					],
-					"scriptLines": [
-						"source(output(",
-						"          userId as string,",
-						"          movieId as string,",
-						"          rating as string,",
-						"          timestamp as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> srcRatings",
-						"srcRatings cast(output(",
-						"          userId as integer,",
-						"          movieId as integer,",
-						"          rating as double,",
-						"          timestamp as long",
-						"     ),",
-						"     errors: true) ~> castTypes",
-						"castTypes derive(rated_at = toTimestamp(timestamp * 1000L),",
-						"          rating_year = year(toTimestamp(timestamp * 1000L)),",
-						"          rated_date = toDate(toTimestamp(timestamp * 1000L)),",
-						"          rated_day_of_week = dayOfWeek(toTimestamp(timestamp * 1000L)),",
-						"          rated_day_name = toString(toTimestamp(timestamp * 1000L), 'EEEE')) ~> deriveColumns",
-						"deriveColumns assert(expectTrue(rating >= 0.5 && rating <= 5.0, false, 'valid_rating'),",
-						"     expectTrue(!isNull(userId) && !isNull(movieId), false, 'ids_not_null')) ~> assertQuality",
-						"assertQuality sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     format: 'parquet',",
-						"     umask: 0022,",
-						"     preCommands: [],",
-						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     mapColumn(",
-						"          user_Id = userId,",
-						"          movie_Id = movieId,",
-						"          rating,",
-						"          rated_at,",
-						"          rating_year,",
-						"          rated_date,",
-						"          rated_day_of_week,",
-						"          rated_day_name",
-						"     )) ~> sinkSilverRatings"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_adls_csv_generic')]",
-				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_load_gold_dims')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "copy_dim_movie",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 1,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "ParquetSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"wildcardFolderPath": "movielens/movies",
-									"wildcardFileName": "*.parquet",
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "ParquetReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "TRUNCATE TABLE gold.dim_movie",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "movie-Id",
-											"type": "Int32",
-											"physicalType": "INT32"
-										},
-										"sink": {
-											"name": "movie_id",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "Title",
-											"type": "String",
-											"physicalType": "UTF8"
-										},
-										"sink": {
-											"name": "title",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "release_year",
-											"type": "Int32",
-											"physicalType": "INT32"
-										},
-										"sink": {
-											"name": "release_year",
-											"type": "Int16",
-											"physicalType": "smallint"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_adls_parquet_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "silver",
-									"directory": "movielens/movies"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ds_azuresql_table_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema_name": "gold",
-									"table_name": "dim_movie"
-								}
-							}
-						]
-					},
-					{
-						"name": "copy_movie_genre",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 1,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "ParquetSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"wildcardFolderPath": "movielens/movie_genres",
-									"wildcardFileName": "*.parquet",
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "ParquetReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "TRUNCATE TABLE gold.movie_genre",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "movieId",
-											"type": "Int32",
-											"physicalType": "INT32"
-										},
-										"sink": {
-											"name": "movie_id",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "genre",
-											"type": "String",
-											"physicalType": "UTF8"
-										},
-										"sink": {
-											"name": "genre",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_adls_parquet_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "silver",
-									"directory": "movielens/movie_genres"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ds_azuresql_table_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema_name": "gold",
-									"table_name": "movie_genre"
-								}
-							}
-						]
-					},
-					{
-						"name": "copy_fact_rating",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 1,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "ParquetSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"wildcardFolderPath": "movielens/ratings",
-									"wildcardFileName": "*.parquet",
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "ParquetReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "TRUNCATE TABLE gold.fact_rating",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "user_Id",
-											"type": "Int32",
-											"physicalType": "INT32"
-										},
-										"sink": {
-											"name": "user_id",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "movie_Id",
-											"type": "Int32",
-											"physicalType": "INT32"
-										},
-										"sink": {
-											"name": "movie_id",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "rated_date",
-											"type": "DateTime",
-											"physicalType": "DATE"
-										},
-										"sink": {
-											"name": "rated_date",
-											"type": "Date",
-											"physicalType": "date"
-										}
-									},
-									{
-										"source": {
-											"name": "rated_at",
-											"type": "DateTime",
-											"physicalType": "INT96"
-										},
-										"sink": {
-											"name": "rated_at",
-											"type": "DateTime",
-											"physicalType": "datetime2"
-										}
-									},
-									{
-										"source": {
-											"name": "rating",
-											"type": "Double",
-											"physicalType": "DOUBLE"
-										},
-										"sink": {
-											"name": "rating",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 1,
-											"precision": 2
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_adls_parquet_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "silver",
-									"directory": "movielens/ratings"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ds_azuresql_table_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema_name": "gold",
-									"table_name": "fact_rating"
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]",
-				"[concat(variables('factoryId'), '/datasets/ds_azuresql_table_generic')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/df_gold_aggregates')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -1503,7 +1379,7 @@
 						"     skipDuplicateMapOutputs: true,",
 						"     errorHandlingOption: 'stopOnFirstError',",
 						"     mapColumn(",
-						"          {movie-id} = aggByMovie@{movie-Id},",
+						"          movie_id = aggByMovie@{movie-Id},",
 						"          rating_count,",
 						"          avg_rating,",
 						"          first_rated_date,",
@@ -1530,67 +1406,265 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/pl_build_gold_aggregates')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
+			"name": "[concat(parameters('factoryName'), '/df_incremental_fact_rating')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"activities": [
-					{
-						"name": "df_gold_aggregates_run",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "df_gold_aggregates",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"srcRatings": {
-										"container": "silver",
-										"directory": "movielens/ratings"
-									},
-									"srcMovies": {
-										"container": "silver",
-										"directory": "movielens/movies"
-									},
-									"srcGenres": {
-										"container": "silver",
-										"directory": "movielens/movie_genres"
-									},
-									"sinkAggMovieStats": {
-										"schema_name": "gold",
-										"table_name": "agg_movie_stats"
-									},
-									"sinkAggGenreYear": {
-										"schema_name": "gold",
-										"table_name": "agg_genre_year"
-									}
-								}
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference"
 							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine"
+							"name": "srcRatings"
 						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_azuresql_table_generic",
+								"type": "DatasetReference"
+							},
+							"name": "sinkFactRating"
+						}
+					],
+					"transformations": [
+						{
+							"name": "filterNewRatings"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     watermark as string ('1900-01-01 00:00:00')",
+						"}",
+						"source(output(",
+						"          user_Id as integer,",
+						"          movie_Id as integer,",
+						"          rating as double,",
+						"          rated_at as timestamp,",
+						"          rating_year as integer,",
+						"          rated_date as date,",
+						"          rated_day_of_week as integer,",
+						"          rated_day_name as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> srcRatings",
+						"srcRatings filter(rated_at > toTimestamp($watermark, 'yyyy-MM-dd HH:mm:ss')) ~> filterNewRatings",
+						"filterNewRatings sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          user_id = user_Id,",
+						"          movie_id = movie_Id,",
+						"          rating,",
+						"          rated_at,",
+						"          rated_date",
+						"     )) ~> sinkFactRating"
+					]
+				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/df_gold_aggregates')]"
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]",
+				"[concat(variables('factoryId'), '/datasets/ds_azuresql_table_generic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_movies_bronze_to_silve')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_adls_csv_generic",
+								"type": "DatasetReference"
+							},
+							"name": "srcMovies"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference"
+							},
+							"name": "sinkSilverMovies"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference"
+							},
+							"name": "sinkSilverMovieGenres"
+						}
+					],
+					"transformations": [
+						{
+							"name": "castTypes"
+						},
+						{
+							"name": "splitGenres"
+						},
+						{
+							"name": "flattenGenres"
+						},
+						{
+							"name": "filterNoGenre"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          movieId as string,",
+						"          title as string,",
+						"          genres as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> srcMovies",
+						"srcMovies cast(output(",
+						"          movieId as integer",
+						"     ),",
+						"     errors: true) ~> castTypes",
+						"castTypes derive(genre_list = split(genres, '|'),",
+						"          release_year = toInteger(regexExtract(title, '\\\\((\\\\d{4})\\\\)\\\\s*$', 1)),",
+						"          clean_title = trim(regexReplace(title, '\\\\s*\\\\(\\\\d{4}\\\\)\\\\s*$', ''))) ~> splitGenres",
+						"splitGenres foldDown(unroll(genre_list),",
+						"     mapColumn(",
+						"          movieId,",
+						"          genre = genre_list",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: false) ~> flattenGenres",
+						"flattenGenres filter(genre != '(no genres listed)') ~> filterNoGenre",
+						"splitGenres sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     truncate: true,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          movie_id = movieId,",
+						"          title = clean_title,",
+						"          genres,",
+						"          release_year",
+						"     )) ~> sinkSilverMovies",
+						"filterNoGenre sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     truncate: true,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sinkSilverMovieGenres"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_adls_csv_generic')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/df_ratings_bronze_to_silver')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_adls_csv_generic",
+								"type": "DatasetReference"
+							},
+							"name": "srcRatings"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference"
+							},
+							"name": "sinkSilverRatings"
+						}
+					],
+					"transformations": [
+						{
+							"name": "castTypes"
+						},
+						{
+							"name": "deriveColumns"
+						},
+						{
+							"name": "assertQuality"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          userId as string,",
+						"          movieId as string,",
+						"          rating as string,",
+						"          timestamp as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> srcRatings",
+						"srcRatings cast(output(",
+						"          userId as integer,",
+						"          movieId as integer,",
+						"          rating as double,",
+						"          timestamp as long",
+						"     ),",
+						"     errors: true) ~> castTypes",
+						"castTypes derive(rated_at = toTimestamp(timestamp * 1000L),",
+						"          rating_year = year(toTimestamp(timestamp * 1000L)),",
+						"          rated_date = toDate(toTimestamp(timestamp * 1000L)),",
+						"          rated_day_of_week = dayOfWeek(toTimestamp(timestamp * 1000L)),",
+						"          rated_day_name = toString(toTimestamp(timestamp * 1000L), 'EEEE')) ~> deriveColumns",
+						"deriveColumns assert(expectTrue(rating >= 0.5 && rating <= 5.0, false, 'valid_rating'),",
+						"     expectTrue(!isNull(userId) && !isNull(movieId), false, 'ids_not_null')) ~> assertQuality",
+						"assertQuality sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          user_Id = userId,",
+						"          movie_Id = movieId,",
+						"          rating,",
+						"          rated_at,",
+						"          rating_year,",
+						"          rated_date,",
+						"          rated_day_of_week,",
+						"          rated_day_name",
+						"     )) ~> sinkSilverRatings"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_adls_csv_generic')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]"
 			]
 		}
 	]
