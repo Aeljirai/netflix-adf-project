@@ -1,0 +1,67 @@
+{
+	"name": "df_gold_aggregates",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_adls_parquet_generic",
+						"type": "DatasetReference"
+					},
+					"name": "srcRatings"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_adls_parquet_generic",
+						"type": "DatasetReference"
+					},
+					"name": "srcMovies"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_adls_parquet_generic",
+						"type": "DatasetReference"
+					},
+					"name": "srcGenres"
+				}
+			],
+			"sinks": [],
+			"transformations": [],
+			"scriptLines": [
+				"source(output(",
+				"          user_Id as integer,",
+				"          movie_Id as integer,",
+				"          rating as double,",
+				"          rated_at as timestamp,",
+				"          rating_year as integer,",
+				"          rated_date as date,",
+				"          rated_day_of_week as integer,",
+				"          rated_day_name as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> srcRatings",
+				"source(output(",
+				"          {movie-Id} as integer,",
+				"          Title as string,",
+				"          genres as string,",
+				"          release_year as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> srcMovies",
+				"source(output(",
+				"          movieId as integer,",
+				"          genre as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> srcGenres"
+			]
+		}
+	}
+}
