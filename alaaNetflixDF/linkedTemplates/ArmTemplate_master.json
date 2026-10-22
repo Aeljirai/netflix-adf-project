@@ -1,0 +1,84 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "alaaNetflixDF"
+		},
+		"ls_adls_netflix_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'ls_adls_netflix'"
+		},
+		"ls_azuresql_netflix_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_azuresql_netflix'"
+		},
+		"ls_adls_netflix_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://alaa0netflixdata.dfs.core.windows.net/"
+		},
+		"ls_azuresql_netflix_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "sql-netflix-alaa-weu.database.windows.net"
+		},
+		"ls_azuresql_netflix_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "sqldb-netflix-gold"
+		},
+		"ls_azuresql_netflix_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "sqladmin"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "alaaNetflixDF_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"ls_adls_netflix_accountKey": {
+						"value": "[parameters('ls_adls_netflix_accountKey')]"
+					},
+					"ls_azuresql_netflix_password": {
+						"value": "[parameters('ls_azuresql_netflix_password')]"
+					},
+					"ls_adls_netflix_properties_typeProperties_url": {
+						"value": "[parameters('ls_adls_netflix_properties_typeProperties_url')]"
+					},
+					"ls_azuresql_netflix_properties_typeProperties_server": {
+						"value": "[parameters('ls_azuresql_netflix_properties_typeProperties_server')]"
+					},
+					"ls_azuresql_netflix_properties_typeProperties_database": {
+						"value": "[parameters('ls_azuresql_netflix_properties_typeProperties_database')]"
+					},
+					"ls_azuresql_netflix_properties_typeProperties_userName": {
+						"value": "[parameters('ls_azuresql_netflix_properties_typeProperties_userName')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}

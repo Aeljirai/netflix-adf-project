@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "alaaNetflixDF"
+		},
+		"ls_adls_netflix_accountKey": {
+			"value": ""
+		},
+		"ls_azuresql_netflix_password": {
+			"value": ""
+		},
+		"ls_adls_netflix_properties_typeProperties_url": {
+			"value": "https://alaa0netflixdata.dfs.core.windows.net/"
+		},
+		"ls_azuresql_netflix_properties_typeProperties_server": {
+			"value": "sql-netflix-alaa-weu.database.windows.net"
+		},
+		"ls_azuresql_netflix_properties_typeProperties_database": {
+			"value": "sqldb-netflix-gold"
+		},
+		"ls_azuresql_netflix_properties_typeProperties_userName": {
+			"value": "sqladmin"
+		}
+	}
+}
