@@ -120,7 +120,7 @@
 				"     skipDuplicateMapOutputs: true,",
 				"     errorHandlingOption: 'stopOnFirstError',",
 				"     mapColumn(",
-				"          {movie-id} = aggByMovie@{movie-Id},",
+				"          movie_id = aggByMovie@{movie-Id},",
 				"          rating_count,",
 				"          avg_rating,",
 				"          first_rated_date,",
