@@ -1,0 +1,68 @@
+{
+	"name": "df_incremental_fact_rating",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_adls_parquet_generic",
+						"type": "DatasetReference"
+					},
+					"name": "srcRatings"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_azuresql_table_generic",
+						"type": "DatasetReference"
+					},
+					"name": "sinkFactRating"
+				}
+			],
+			"transformations": [
+				{
+					"name": "filterNewRatings"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     watermark as string ('1900-01-01 00:00:00')",
+				"}",
+				"source(output(",
+				"          user_Id as integer,",
+				"          movie_Id as integer,",
+				"          rating as double,",
+				"          rated_at as timestamp,",
+				"          rating_year as integer,",
+				"          rated_date as date,",
+				"          rated_day_of_week as integer,",
+				"          rated_day_name as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     format: 'parquet') ~> srcRatings",
+				"srcRatings filter(rated_at > toTimestamp($watermark, 'yyyy-MM-dd HH:mm:ss')) ~> filterNewRatings",
+				"filterNewRatings sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          user_Id,",
+				"          movie_Id,",
+				"          rating,",
+				"          rated_at,",
+				"          rated_date",
+				"     )) ~> sinkFactRating"
+			]
+		}
+	}
+}
