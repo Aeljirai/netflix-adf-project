@@ -1284,6 +1284,156 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/df_gold_aggregates')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference"
+							},
+							"name": "srcRatings"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference"
+							},
+							"name": "srcMovies"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_adls_parquet_generic",
+								"type": "DatasetReference"
+							},
+							"name": "srcGenres"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_azuresql_table_generic",
+								"type": "DatasetReference"
+							},
+							"name": "sinkAggMovieStats"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_azuresql_table_generic",
+								"type": "DatasetReference"
+							},
+							"name": "sinkAggGenreYear"
+						}
+					],
+					"transformations": [
+						{
+							"name": "aggByMovie"
+						},
+						{
+							"name": "joinMovieTitle"
+						},
+						{
+							"name": "joinGenre"
+						},
+						{
+							"name": "aggByGenreYear"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          user_Id as integer,",
+						"          movie_Id as integer,",
+						"          rating as double,",
+						"          rated_at as timestamp,",
+						"          rating_year as integer,",
+						"          rated_date as date,",
+						"          rated_day_of_week as integer,",
+						"          rated_day_name as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> srcRatings",
+						"source(output(",
+						"          {movie-Id} as integer,",
+						"          Title as string,",
+						"          genres as string,",
+						"          release_year as integer",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> srcMovies",
+						"source(output(",
+						"          movieId as integer,",
+						"          genre as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     format: 'parquet') ~> srcGenres",
+						"srcRatings aggregate(groupBy({movie-Id} = {movie_Id}),",
+						"     rating_count = count(),",
+						"          avg_rating = round(avg(rating), 2),",
+						"          first_rated_date = min(rated_date),",
+						"          last_rated_date = max(rated_date)) ~> aggByMovie",
+						"aggByMovie, srcMovies join(aggByMovie@{movie-Id} == srcMovies@{movie-Id},",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinMovieTitle",
+						"srcRatings, srcGenres join(movie_Id == movieId,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinGenre",
+						"joinGenre aggregate(groupBy(genre,",
+						"          rating_year),",
+						"     rating_count = count(),",
+						"          avg_rating = round(avg(rating), 2)) ~> aggByGenreYear",
+						"joinMovieTitle sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     truncate:true,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          {movie-id} = aggByMovie@{movie-Id},",
+						"          rating_count,",
+						"          avg_rating,",
+						"          first_rated_date,",
+						"          last_rated_date,",
+						"          title = Title",
+						"     )) ~> sinkAggMovieStats",
+						"aggByGenreYear sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     truncate:true,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError') ~> sinkAggGenreYear"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]",
+				"[concat(variables('factoryId'), '/datasets/ds_azuresql_table_generic')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_transform_movies_silver')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
