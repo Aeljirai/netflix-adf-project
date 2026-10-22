@@ -8,8 +8,8 @@
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
+					"retry": 2,
+					"retryIntervalInSeconds": 60,
 					"secureOutput": false,
 					"secureInput": false
 				},
@@ -56,7 +56,7 @@
 						"type": "DataFlowReference",
 						"parameters": {
 							"watermark": {
-								"value": "'@{  @formatDateTime(activity('lookup_old_watermark').output.firstRow.watermark_value, 'yyyy-MM-dd HH:mm:ss')}'",
+								"value": "'@{formatDateTime(activity('lookup_old_watermark').output.firstRow.watermark_value, 'yyyy-MM-dd HH:mm:ss')}'",
 								"type": "Expression"
 							}
 						},
