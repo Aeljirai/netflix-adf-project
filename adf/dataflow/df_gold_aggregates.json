@@ -27,7 +27,11 @@
 				}
 			],
 			"sinks": [],
-			"transformations": [],
+			"transformations": [
+				{
+					"name": "aggByMovie"
+				}
+			],
 			"scriptLines": [
 				"source(output(",
 				"          user_Id as integer,",
@@ -60,7 +64,12 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     ignoreNoFilesFound: false,",
-				"     format: 'parquet') ~> srcGenres"
+				"     format: 'parquet') ~> srcGenres",
+				"srcRatings aggregate(groupBy({movie-Id} = {movie_Id}),",
+				"     rating_count = count(),",
+				"          avg_rating = round(avg(rating), 2),",
+				"          first_rated_date = min(rated_date),",
+				"          last_rated_date = max(rated_date)) ~> aggByMovie"
 			]
 		}
 	}
