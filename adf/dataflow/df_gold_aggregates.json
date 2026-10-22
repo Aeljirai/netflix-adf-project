@@ -33,6 +33,13 @@
 						"type": "DatasetReference"
 					},
 					"name": "sinkAggMovieStats"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_azuresql_table_generic",
+						"type": "DatasetReference"
+					},
+					"name": "sinkAggGenreYear"
 				}
 			],
 			"transformations": [
@@ -119,7 +126,18 @@
 				"          first_rated_date,",
 				"          last_rated_date,",
 				"          title = Title",
-				"     )) ~> sinkAggMovieStats"
+				"     )) ~> sinkAggMovieStats",
+				"aggByGenreYear sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     truncate:true,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sinkAggGenreYear"
 			]
 		}
 	}
