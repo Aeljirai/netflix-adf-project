@@ -32,7 +32,7 @@
 				}
 			},
 			{
-				"name": "Data flow1",
+				"name": "df_load_new_ratings",
 				"type": "ExecuteDataFlow",
 				"dependsOn": [
 					{
@@ -44,7 +44,7 @@
 				],
 				"policy": {
 					"timeout": "0.12:00:00",
-					"retry": 0,
+					"retry": 1,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
 					"secureInput": false
@@ -83,7 +83,7 @@
 				"type": "Script",
 				"dependsOn": [
 					{
-						"activity": "Data flow1",
+						"activity": "df_load_new_ratings",
 						"dependencyConditions": [
 							"Succeeded"
 						]
