@@ -26,13 +26,27 @@
 					"name": "srcGenres"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_azuresql_table_generic",
+						"type": "DatasetReference"
+					},
+					"name": "sinkAggMovieStats"
+				}
+			],
 			"transformations": [
 				{
 					"name": "aggByMovie"
 				},
 				{
 					"name": "joinMovieTitle"
+				},
+				{
+					"name": "joinGenre"
+				},
+				{
+					"name": "aggByGenreYear"
 				}
 			],
 			"scriptLines": [
@@ -77,7 +91,35 @@
 				"     joinType:'inner',",
 				"     matchType:'exact',",
 				"     ignoreSpaces: false,",
-				"     broadcast: 'auto')~> joinMovieTitle"
+				"     broadcast: 'auto')~> joinMovieTitle",
+				"srcRatings, srcGenres join(movie_Id == movieId,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinGenre",
+				"joinGenre aggregate(groupBy(genre,",
+				"          rating_year),",
+				"     rating_count = count(),",
+				"          avg_rating = round(avg(rating), 2)) ~> aggByGenreYear",
+				"joinMovieTitle sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     truncate:true,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          {movie-id} = aggByMovie@{movie-Id},",
+				"          rating_count,",
+				"          avg_rating,",
+				"          first_rated_date,",
+				"          last_rated_date,",
+				"          title = Title",
+				"     )) ~> sinkAggMovieStats"
 			]
 		}
 	}
