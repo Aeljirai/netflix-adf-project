@@ -1,0 +1,54 @@
+{
+	"name": "pl_build_gold_aggregates",
+	"properties": {
+		"activities": [
+			{
+				"name": "df_gold_aggregates_run",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_gold_aggregates",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"srcRatings": {
+								"container": "silver",
+								"directory": "movielens/ratings"
+							},
+							"srcMovies": {
+								"container": "silver",
+								"directory": "movielens/movies"
+							},
+							"srcGenres": {
+								"container": "silver",
+								"directory": "movielens/movie_genres"
+							},
+							"sinkAggMovieStats": {
+								"schema_name": "gold",
+								"table_name": "agg_movie_stats"
+							},
+							"sinkAggGenreYear": {
+								"schema_name": "gold",
+								"table_name": "agg_genre_year"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"annotations": []
+	}
+}
