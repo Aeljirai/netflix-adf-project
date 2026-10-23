@@ -315,8 +315,7 @@
 										"schema_name": "gold",
 										"table_name": "fact_rating"
 									}
-								},
-								"linkedServiceParameters": {}
+								}
 							},
 							"staging": {},
 							"compute": {
@@ -558,7 +557,10 @@
 														"type": "DatasetReference",
 														"parameters": {
 															"container": "bronze",
-															"directory": "@concat('movielens/', item().table_name, '/ingest_date=', formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd'))",
+															"directory": {
+																"value": "@concat('movielens/', item().table_name, '/ingest_date=', pipeline().parameters.ingest_date)",
+																"type": "Expression"
+															},
 															"file_name": "@item().file_name"
 														}
 													}
@@ -607,6 +609,12 @@
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"ingest_date": {
+						"type": "string",
+						"defaultValue": "2026-10-23"
+					}
 				},
 				"variables": {
 					"skipped_files": {
@@ -818,134 +826,6 @@
 								}
 							}
 						]
-					},
-					{
-						"name": "copy_fact_rating",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 1,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "ParquetSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"wildcardFolderPath": "movielens/ratings",
-									"wildcardFileName": "*.parquet",
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "ParquetReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "TRUNCATE TABLE gold.fact_rating",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "user_Id",
-											"type": "Int32",
-											"physicalType": "INT32"
-										},
-										"sink": {
-											"name": "user_id",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "movie_Id",
-											"type": "Int32",
-											"physicalType": "INT32"
-										},
-										"sink": {
-											"name": "movie_id",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "rated_date",
-											"type": "DateTime",
-											"physicalType": "DATE"
-										},
-										"sink": {
-											"name": "rated_date",
-											"type": "Date",
-											"physicalType": "date"
-										}
-									},
-									{
-										"source": {
-											"name": "rated_at",
-											"type": "DateTime",
-											"physicalType": "INT96"
-										},
-										"sink": {
-											"name": "rated_at",
-											"type": "DateTime",
-											"physicalType": "datetime2"
-										}
-									},
-									{
-										"source": {
-											"name": "rating",
-											"type": "Double",
-											"physicalType": "DOUBLE"
-										},
-										"sink": {
-											"name": "rating",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 1,
-											"precision": 2
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_adls_parquet_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "silver",
-									"directory": "movielens/ratings"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ds_azuresql_table_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema_name": "gold",
-									"table_name": "fact_rating"
-								}
-							}
-						]
 					}
 				],
 				"policy": {
@@ -984,7 +864,7 @@
 								"datasetParameters": {
 									"srcMovies": {
 										"container": "bronze",
-										"directory": "movielens/movies/ingest_date=2026-10-18",
+										"directory": "@concat('movielens/movies/ingest_date=', pipeline().parameters.ingest_date)",
 										"file_name": "movies.csv"
 									},
 									"sinkSilverMovies": {
@@ -1025,7 +905,7 @@
 								"datasetParameters": {
 									"srcRatings": {
 										"container": "btonze",
-										"directory": "movielens/ratings/ingest_date=2026-10-18",
+										"directory": "@concat('movielens/ratings/ingest_date=', pipeline().parameters.ingest_date)",
 										"file_name": "ratings.csv"
 									},
 									"sinkSilverRatings": {
@@ -1045,6 +925,12 @@
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"ingest_date": {
+						"type": "string",
+						"defaultValue": "2026-10-23"
+					}
 				},
 				"annotations": [],
 				"lastPublishTime": "2026-10-20T03:00:15Z"
