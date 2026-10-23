@@ -59,7 +59,7 @@
 						"type": "DataFlowReference",
 						"datasetParameters": {
 							"srcRatings": {
-								"container": "btonze",
+								"container": "bronze",
 								"directory": "@concat('movielens/ratings/ingest_date=', pipeline().parameters.ingest_date)",
 								"file_name": "ratings.csv"
 							},
