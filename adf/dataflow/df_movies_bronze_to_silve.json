@@ -60,7 +60,7 @@
 				"          clean_title = trim(regexReplace(title, '\\\\s*\\\\(\\\\d{4}\\\\)\\\\s*$', ''))) ~> splitGenres",
 				"splitGenres foldDown(unroll(genre_list),",
 				"     mapColumn(",
-				"          movieId,",
+				"          movie_id = movieId,",
 				"          genre = genre_list",
 				"     ),",
 				"     skipDuplicateMapInputs: false,",
