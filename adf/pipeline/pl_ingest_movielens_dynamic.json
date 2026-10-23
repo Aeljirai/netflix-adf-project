@@ -182,7 +182,10 @@
 												"type": "DatasetReference",
 												"parameters": {
 													"container": "bronze",
-													"directory": "@concat('movielens/', item().table_name, '/ingest_date=', formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd'))",
+													"directory": {
+														"value": "@concat('movielens/', item().table_name, '/ingest_date=', pipeline().parameters.ingest_date)",
+														"type": "Expression"
+													},
 													"file_name": "@item().file_name"
 												}
 											}
@@ -229,6 +232,12 @@
 				}
 			}
 		],
+		"parameters": {
+			"ingest_date": {
+				"type": "string",
+				"defaultValue": "2026-10-23"
+			}
+		},
 		"variables": {
 			"skipped_files": {
 				"type": "Array"
