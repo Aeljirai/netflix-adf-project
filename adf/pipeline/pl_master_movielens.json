@@ -41,7 +41,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"ingest_date": "@variables('run_date')"
+						"ingest_date": {
+							"value": "@variables('run_date')",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -67,7 +70,10 @@
 					},
 					"waitOnCompletion": true,
 					"parameters": {
-						"ingest_date": "@variables('run_date')"
+						"ingest_date": {
+							"value": "@variables('run_date')",
+							"type": "Expression"
+						}
 					}
 				}
 			},
@@ -77,12 +83,6 @@
 				"dependsOn": [
 					{
 						"activity": "exec_transform",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "exec_aggregates",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -105,7 +105,7 @@
 				"type": "ExecutePipeline",
 				"dependsOn": [
 					{
-						"activity": "exec_load_dims",
+						"activity": "exec_transform",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -129,6 +129,12 @@
 				"dependsOn": [
 					{
 						"activity": "exec_load_fact",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "exec_load_dims",
 						"dependencyConditions": [
 							"Succeeded"
 						]
