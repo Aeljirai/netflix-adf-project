@@ -1,0 +1,162 @@
+{
+	"name": "pl_master_movielens",
+	"properties": {
+		"activities": [
+			{
+				"name": "set_run_date",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "run_date",
+					"value": {
+						"value": "@formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "exec_ingest",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "set_run_date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_ingest_movielens_dynamic",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"ingest_date": "@variables('run_date')"
+					}
+				}
+			},
+			{
+				"name": "exec_transform",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "exec_ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_transform_movies_silver",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"ingest_date": "@variables('run_date')"
+					}
+				}
+			},
+			{
+				"name": "exec_load_dims",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "exec_transform",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "exec_aggregates",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_load_gold_dims",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "exec_load_fact",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "exec_load_dims",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_incremental_fact_rating",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "exec_aggregates",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "exec_load_fact",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_build_gold_aggregates",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			}
+		],
+		"parameters": {
+			"run_date": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"run_date": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
