@@ -21,7 +21,7 @@
 						"datasetParameters": {
 							"srcMovies": {
 								"container": "bronze",
-								"directory": "movielens/movies/ingest_date=2026-10-18",
+								"directory": "@concat('movielens/movies/ingest_date=', pipeline().parameters.ingest_date)",
 								"file_name": "movies.csv"
 							},
 							"sinkSilverMovies": {
@@ -60,7 +60,7 @@
 						"datasetParameters": {
 							"srcRatings": {
 								"container": "btonze",
-								"directory": "movielens/ratings/ingest_date=2026-10-18",
+								"directory": "@concat('movielens/ratings/ingest_date=', pipeline().parameters.ingest_date)",
 								"file_name": "ratings.csv"
 							},
 							"sinkSilverRatings": {
@@ -77,6 +77,12 @@
 				}
 			}
 		],
+		"parameters": {
+			"ingest_date": {
+				"type": "string",
+				"defaultValue": "2026-10-23"
+			}
+		},
 		"annotations": [],
 		"lastPublishTime": "2026-10-20T03:00:15Z"
 	},
