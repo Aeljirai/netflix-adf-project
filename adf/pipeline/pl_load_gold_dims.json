@@ -41,7 +41,7 @@
 						"mappings": [
 							{
 								"source": {
-									"name": "movie-Id",
+									"name": "movie_id",
 									"type": "Int32",
 									"physicalType": "INT32"
 								},
@@ -53,7 +53,7 @@
 							},
 							{
 								"source": {
-									"name": "Title",
+									"name": "title",
 									"type": "String",
 									"physicalType": "UTF8"
 								},
