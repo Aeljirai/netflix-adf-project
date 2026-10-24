@@ -812,7 +812,7 @@
 								"mappings": [
 									{
 										"source": {
-											"name": "movie-Id",
+											"name": "movie_id",
 											"type": "Int32",
 											"physicalType": "INT32"
 										},
@@ -824,7 +824,7 @@
 									},
 									{
 										"source": {
-											"name": "Title",
+											"name": "title",
 											"type": "String",
 											"physicalType": "UTF8"
 										},
@@ -914,7 +914,7 @@
 								"mappings": [
 									{
 										"source": {
-											"name": "movieId",
+											"name": "movie_id",
 											"type": "Int32",
 											"physicalType": "INT32"
 										},
@@ -1264,7 +1264,7 @@
 						"          clean_title = trim(regexReplace(title, '\\\\s*\\\\(\\\\d{4}\\\\)\\\\s*$', ''))) ~> splitGenres",
 						"splitGenres foldDown(unroll(genre_list),",
 						"     mapColumn(",
-						"          movieId,",
+						"          movie_id = movieId,",
 						"          genre = genre_list",
 						"     ),",
 						"     skipDuplicateMapInputs: false,",
@@ -1365,6 +1365,7 @@
 						"assertQuality sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     format: 'parquet',",
+						"     truncate: true,",
 						"     umask: 0022,",
 						"     preCommands: [],",
 						"     postCommands: [],",
@@ -1646,7 +1647,7 @@
 								"parameters": {},
 								"datasetParameters": {
 									"srcRatings": {
-										"container": "btonze",
+										"container": "bronze",
 										"directory": "@concat('movielens/ratings/ingest_date=', pipeline().parameters.ingest_date)",
 										"file_name": "ratings.csv"
 									},

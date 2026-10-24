@@ -674,7 +674,7 @@
 								"mappings": [
 									{
 										"source": {
-											"name": "movie-Id",
+											"name": "movie_id",
 											"type": "Int32",
 											"physicalType": "INT32"
 										},
@@ -686,7 +686,7 @@
 									},
 									{
 										"source": {
-											"name": "Title",
+											"name": "title",
 											"type": "String",
 											"physicalType": "UTF8"
 										},
@@ -776,7 +776,7 @@
 								"mappings": [
 									{
 										"source": {
-											"name": "movieId",
+											"name": "movie_id",
 											"type": "Int32",
 											"physicalType": "INT32"
 										},
@@ -836,6 +836,189 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]",
 				"[concat(variables('factoryId'), '/datasets/ds_azuresql_table_generic')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_master_movielens')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "set_run_date",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "run_date",
+							"value": {
+								"value": "@formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "exec_ingest",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "set_run_date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_ingest_movielens_dynamic",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"ingest_date": {
+									"value": "@variables('run_date')",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "exec_transform",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "exec_ingest",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_transform_movies_silver",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"ingest_date": {
+									"value": "@variables('run_date')",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "exec_load_dims",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "exec_transform",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_load_gold_dims",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "exec_load_fact",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "exec_transform",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_incremental_fact_rating",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "exec_aggregates",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "exec_load_fact",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "exec_load_dims",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "pl_build_gold_aggregates",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"run_date": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"run_date": {
+						"type": "String"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_ingest_movielens_dynamic')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_transform_movies_silver')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_load_gold_dims')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_incremental_fact_rating')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_build_gold_aggregates')]"
 			]
 		},
 		{
@@ -904,7 +1087,7 @@
 								"parameters": {},
 								"datasetParameters": {
 									"srcRatings": {
-										"container": "btonze",
+										"container": "bronze",
 										"directory": "@concat('movielens/ratings/ingest_date=', pipeline().parameters.ingest_date)",
 										"file_name": "ratings.csv"
 									},
@@ -1558,7 +1741,7 @@
 						"          clean_title = trim(regexReplace(title, '\\\\s*\\\\(\\\\d{4}\\\\)\\\\s*$', ''))) ~> splitGenres",
 						"splitGenres foldDown(unroll(genre_list),",
 						"     mapColumn(",
-						"          movieId,",
+						"          movie_id = movieId,",
 						"          genre = genre_list",
 						"     ),",
 						"     skipDuplicateMapInputs: false,",
@@ -1659,6 +1842,7 @@
 						"assertQuality sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     format: 'parquet',",
+						"     truncate: true,",
 						"     umask: 0022,",
 						"     preCommands: [],",
 						"     postCommands: [],",
