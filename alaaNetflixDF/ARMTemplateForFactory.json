@@ -996,6 +996,74 @@
 							"waitOnCompletion": true,
 							"parameters": {}
 						}
+					},
+					{
+						"name": "check_agg_rows",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "exec_aggregates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT COUNT(*) AS n FROM gold.agg_movie_stats",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_azuresql_table_generic",
+								"type": "DatasetReference",
+								"parameters": {
+									"schema_name": "gold",
+									"table_name": "agg_movie_stats"
+								}
+							}
+						}
+					},
+					{
+						"name": "if_agg_empty",
+						"description": "",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "check_agg_rows",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@less(activity('check_agg_rows').output.firstRow.n, 1000)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "fail_dq_agg_empty",
+									"type": "Fail",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"message": "Data quality check failed: gold.agg_movie_stats has fewer than 1000 rows",
+										"errorCode": "DQ_AGG_EMPTY"
+									}
+								}
+							]
+						}
 					}
 				],
 				"policy": {
@@ -1018,7 +1086,8 @@
 				"[concat(variables('factoryId'), '/pipelines/pl_transform_movies_silver')]",
 				"[concat(variables('factoryId'), '/pipelines/pl_load_gold_dims')]",
 				"[concat(variables('factoryId'), '/pipelines/pl_incremental_fact_rating')]",
-				"[concat(variables('factoryId'), '/pipelines/pl_build_gold_aggregates')]"
+				"[concat(variables('factoryId'), '/pipelines/pl_build_gold_aggregates')]",
+				"[concat(variables('factoryId'), '/datasets/ds_azuresql_table_generic')]"
 			]
 		},
 		{
