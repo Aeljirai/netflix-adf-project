@@ -1934,6 +1934,30 @@
 				"[concat(variables('factoryId'), '/datasets/ds_adls_csv_generic')]",
 				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet_generic')]"
 			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_test_alert')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Fail1",
+						"type": "Fail",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"message": "Test alert - please ignore",
+							"errorCode": "TEST_ALERT"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": []
 		}
 	]
 }
