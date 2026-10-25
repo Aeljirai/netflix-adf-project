@@ -1,0 +1,8 @@
+[
+  { "source_folder": "movielens", "file_name": "movies.csv",        "table_name": "movies" },
+  { "source_folder": "movielens", "file_name": "ratings.csv",       "table_name": "ratings" },
+  { "source_folder": "movielens", "file_name": "tags.csv",          "table_name": "tags" },
+  { "source_folder": "movielens", "file_name": "links.csv",         "table_name": "links" },
+  { "source_folder": "movielens", "file_name": "genome-scores.csv", "table_name": "genome_scores" },
+  { "source_folder": "movielens", "file_name": "genome-tags.csv",   "table_name": "genome_tags" }
+]
