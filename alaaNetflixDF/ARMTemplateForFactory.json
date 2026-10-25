@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "alaaNetflixDF"
 		},
-		"ls_azuresql_netflix_password": {
-			"type": "secureString",
-			"metadata": "Secure string for 'password' of 'ls_azuresql_netflix'"
-		},
 		"ls_adls_netflix_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://alaa0netflixdata.dfs.core.windows.net/"
@@ -23,9 +19,9 @@
 			"type": "string",
 			"defaultValue": "sqldb-netflix-gold"
 		},
-		"ls_azuresql_netflix_properties_typeProperties_userName": {
+		"ls_keyvault_netflix_properties_typeProperties_baseUrl": {
 			"type": "string",
-			"defaultValue": "sqladmin"
+			"defaultValue": "https://kv-netflix-alaa.vault.azure.net/"
 		}
 	},
 	"variables": {
@@ -1499,12 +1495,7 @@
 					"database": "[parameters('ls_azuresql_netflix_properties_typeProperties_database')]",
 					"encrypt": "mandatory",
 					"trustServerCertificate": false,
-					"authenticationType": "SQL",
-					"userName": "[parameters('ls_azuresql_netflix_properties_typeProperties_userName')]",
-					"password": {
-						"type": "SecureString",
-						"value": "[parameters('ls_azuresql_netflix_password')]"
-					}
+					"authenticationType": "SystemAssignedManagedIdentity"
 				}
 			},
 			"dependsOn": []
@@ -1963,6 +1954,19 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/pl_master_movielens')]"
 			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_keyvault_netflix')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('ls_keyvault_netflix_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
 		}
 	]
 }

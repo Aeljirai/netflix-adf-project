@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "alaaNetflixDF"
 		},
-		"ls_azuresql_netflix_password": {
-			"type": "secureString",
-			"metadata": "Secure string for 'password' of 'ls_azuresql_netflix'"
-		},
 		"ls_adls_netflix_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://alaa0netflixdata.dfs.core.windows.net/"
@@ -23,9 +19,9 @@
 			"type": "string",
 			"defaultValue": "sqldb-netflix-gold"
 		},
-		"ls_azuresql_netflix_properties_typeProperties_userName": {
+		"ls_keyvault_netflix_properties_typeProperties_baseUrl": {
 			"type": "string",
-			"defaultValue": "sqladmin"
+			"defaultValue": "https://kv-netflix-alaa.vault.azure.net/"
 		},
 		"containerUri": {
 			"type": "string",
@@ -54,9 +50,6 @@
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
 					},
-					"ls_azuresql_netflix_password": {
-						"value": "[parameters('ls_azuresql_netflix_password')]"
-					},
 					"ls_adls_netflix_properties_typeProperties_url": {
 						"value": "[parameters('ls_adls_netflix_properties_typeProperties_url')]"
 					},
@@ -66,8 +59,8 @@
 					"ls_azuresql_netflix_properties_typeProperties_database": {
 						"value": "[parameters('ls_azuresql_netflix_properties_typeProperties_database')]"
 					},
-					"ls_azuresql_netflix_properties_typeProperties_userName": {
-						"value": "[parameters('ls_azuresql_netflix_properties_typeProperties_userName')]"
+					"ls_keyvault_netflix_properties_typeProperties_baseUrl": {
+						"value": "[parameters('ls_keyvault_netflix_properties_typeProperties_baseUrl')]"
 					}
 				}
 			},

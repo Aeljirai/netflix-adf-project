@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "alaaNetflixDF"
 		},
-		"ls_azuresql_netflix_password": {
-			"type": "secureString",
-			"metadata": "Secure string for 'password' of 'ls_azuresql_netflix'"
-		},
 		"ls_adls_netflix_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://alaa0netflixdata.dfs.core.windows.net/"
@@ -23,9 +19,9 @@
 			"type": "string",
 			"defaultValue": "sqldb-netflix-gold"
 		},
-		"ls_azuresql_netflix_properties_typeProperties_userName": {
+		"ls_keyvault_netflix_properties_typeProperties_baseUrl": {
 			"type": "string",
-			"defaultValue": "sqladmin"
+			"defaultValue": "https://kv-netflix-alaa.vault.azure.net/"
 		}
 	},
 	"variables": {
@@ -59,12 +55,20 @@
 					"database": "[parameters('ls_azuresql_netflix_properties_typeProperties_database')]",
 					"encrypt": "mandatory",
 					"trustServerCertificate": false,
-					"authenticationType": "SQL",
-					"userName": "[parameters('ls_azuresql_netflix_properties_typeProperties_userName')]",
-					"password": {
-						"type": "SecureString",
-						"value": "[parameters('ls_azuresql_netflix_password')]"
-					}
+					"authenticationType": "SystemAssignedManagedIdentity"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_keyvault_netflix')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('ls_keyvault_netflix_properties_typeProperties_baseUrl')]"
 				}
 			},
 			"dependsOn": []
@@ -1571,108 +1575,6 @@
 				"[concat(variables('factoryId'), '/datasets/ds_azuresql_table_generic')]",
 				"[concat(variables('factoryId'), '/dataflows/df_incremental_fact_rating')]",
 				"[concat(variables('factoryId'), '/linkedServices/ls_azuresql_netflix')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_transform_movies_silver')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "df_movies_to_silver",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "df_movies_bronze_to_silve",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"srcMovies": {
-										"container": "bronze",
-										"directory": "@concat('movielens/movies/ingest_date=', pipeline().parameters.ingest_date)",
-										"file_name": "movies.csv"
-									},
-									"sinkSilverMovies": {
-										"container": "silver",
-										"directory": "movielens/movies"
-									},
-									"sinkSilverMovieGenres": {
-										"container": "silver",
-										"directory": "movielens/movie_genres"
-									}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine"
-						}
-					},
-					{
-						"name": "df_ratings_to_silver",
-						"type": "ExecuteDataFlow",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataflow": {
-								"referenceName": "df_ratings_bronze_to_silver",
-								"type": "DataFlowReference",
-								"parameters": {},
-								"datasetParameters": {
-									"srcRatings": {
-										"container": "bronze",
-										"directory": "@concat('movielens/ratings/ingest_date=', pipeline().parameters.ingest_date)",
-										"file_name": "ratings.csv"
-									},
-									"sinkSilverRatings": {
-										"container": "silver",
-										"directory": "movielens/ratings"
-									}
-								}
-							},
-							"staging": {},
-							"compute": {
-								"coreCount": 8,
-								"computeType": "General"
-							},
-							"traceLevel": "Fine"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"ingest_date": {
-						"type": "string",
-						"defaultValue": "2026-10-23"
-					}
-				},
-				"annotations": [],
-				"lastPublishTime": "2026-10-20T03:00:15Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/df_movies_bronze_to_silve')]",
-				"[concat(variables('factoryId'), '/dataflows/df_ratings_bronze_to_silver')]"
 			]
 		}
 	]

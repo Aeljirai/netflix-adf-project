@@ -5,9 +5,6 @@
 		"factoryName": {
 			"value": "alaaNetflixDF"
 		},
-		"ls_azuresql_netflix_password": {
-			"value": ""
-		},
 		"ls_adls_netflix_properties_typeProperties_url": {
 			"value": "https://alaa0netflixdata.dfs.core.windows.net/"
 		},
@@ -17,8 +14,8 @@
 		"ls_azuresql_netflix_properties_typeProperties_database": {
 			"value": "sqldb-netflix-gold"
 		},
-		"ls_azuresql_netflix_properties_typeProperties_userName": {
-			"value": "sqladmin"
+		"ls_keyvault_netflix_properties_typeProperties_baseUrl": {
+			"value": "https://kv-netflix-alaa.vault.azure.net/"
 		}
 	}
 }

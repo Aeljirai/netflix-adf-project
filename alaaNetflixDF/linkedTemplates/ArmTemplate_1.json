@@ -13,6 +13,105 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/pl_transform_movies_silver')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "df_movies_to_silver",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_movies_bronze_to_silve",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"srcMovies": {
+										"container": "bronze",
+										"directory": "@concat('movielens/movies/ingest_date=', pipeline().parameters.ingest_date)",
+										"file_name": "movies.csv"
+									},
+									"sinkSilverMovies": {
+										"container": "silver",
+										"directory": "movielens/movies"
+									},
+									"sinkSilverMovieGenres": {
+										"container": "silver",
+										"directory": "movielens/movie_genres"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "df_ratings_to_silver",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_ratings_bronze_to_silver",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"srcRatings": {
+										"container": "bronze",
+										"directory": "@concat('movielens/ratings/ingest_date=', pipeline().parameters.ingest_date)",
+										"file_name": "ratings.csv"
+									},
+									"sinkSilverRatings": {
+										"container": "silver",
+										"directory": "movielens/ratings"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"ingest_date": {
+						"type": "string",
+						"defaultValue": "2026-10-23"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-10-20T03:00:15Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_master_movielens')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -250,7 +349,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_transform_movies_silver')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/tr_master_weekly')]",
