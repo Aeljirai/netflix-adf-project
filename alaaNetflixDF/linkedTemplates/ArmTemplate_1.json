@@ -342,11 +342,6 @@
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
-				"parameters": {
-					"run_date": {
-						"type": "string"
-					}
-				},
 				"variables": {
 					"run_date": {
 						"type": "String"
@@ -356,6 +351,48 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/pl_transform_movies_silver')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/tr_master_weekly')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "pl_master_movielens",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Week",
+						"interval": 1,
+						"startTime": "2026-11-01T00:00:00",
+						"endTime": "2026-12-31T23:59:00",
+						"timeZone": "Morocco Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								3
+							],
+							"weekDays": [
+								"Sunday"
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_master_movielens')]"
 			]
 		}
 	]
