@@ -221,11 +221,6 @@
 				}
 			}
 		],
-		"parameters": {
-			"run_date": {
-				"type": "string"
-			}
-		},
 		"variables": {
 			"run_date": {
 				"type": "String"
