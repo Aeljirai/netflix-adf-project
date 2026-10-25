@@ -1,0 +1,36 @@
+{
+	"name": "tr_master_weekly",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pl_master_movielens",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Week",
+				"interval": 1,
+				"startTime": "2026-11-01T00:00:00",
+				"endTime": "2026-12-31T23:59:00",
+				"timeZone": "Morocco Standard Time",
+				"schedule": {
+					"minutes": [
+						0
+					],
+					"hours": [
+						3
+					],
+					"weekDays": [
+						"Sunday"
+					]
+				}
+			}
+		}
+	}
+}
