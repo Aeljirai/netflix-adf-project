@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "alaaNetflixDF"
 		},
-		"ls_adls_netflix_accountKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accountKey' of 'ls_adls_netflix'"
-		},
 		"ls_azuresql_netflix_password": {
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'ls_azuresql_netflix'"
@@ -45,11 +41,7 @@
 				"annotations": [],
 				"type": "AzureBlobFS",
 				"typeProperties": {
-					"url": "[parameters('ls_adls_netflix_properties_typeProperties_url')]",
-					"accountKey": {
-						"type": "SecureString",
-						"value": "[parameters('ls_adls_netflix_accountKey')]"
-					}
+					"url": "[parameters('ls_adls_netflix_properties_typeProperties_url')]"
 				}
 			},
 			"dependsOn": []

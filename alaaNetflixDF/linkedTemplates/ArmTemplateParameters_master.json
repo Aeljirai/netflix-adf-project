@@ -5,9 +5,6 @@
 		"factoryName": {
 			"value": "alaaNetflixDF"
 		},
-		"ls_adls_netflix_accountKey": {
-			"value": ""
-		},
 		"ls_azuresql_netflix_password": {
 			"value": ""
 		},
