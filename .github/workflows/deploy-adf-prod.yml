@@ -1,0 +1,52 @@
+name: Deploy ADF to PROD
+
+on:
+  workflow_dispatch:            # bouton "Run workflow" (release manuel)
+
+permissions:
+  id-token: write               # darouri l OIDC (login bla password)
+  contents: read
+
+env:
+  RESOURCE_GROUP: rg-netflix-adf-dev
+  PROD_FACTORY: alaaNetflixDF-prod
+  ARM_FOLDER: alaaNetflixDF
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ARM templates (adf_publish)
+        uses: actions/checkout@v4
+        with:
+          ref: adf_publish
+
+      - name: Login to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Stop PROD triggers
+        run: |
+          az extension add --name datafactory --yes --only-show-errors
+          for t in $(az datafactory trigger list -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --query "[?properties.runtimeState=='Started'].name" -o tsv); do
+            echo "Stopping $t"
+            az datafactory trigger stop -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --name $t
+          done
+
+      - name: Deploy ARM template to PROD
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.RESOURCE_GROUP }}
+          template: ${{ env.ARM_FOLDER }}/ARMTemplateForFactory.json
+          parameters: ${{ env.ARM_FOLDER }}/ARMTemplateParametersForFactory.json factoryName=${{ env.PROD_FACTORY }}
+          deploymentName: adf-prod-${{ github.run_number }}
+
+      - name: Start PROD triggers
+        run: |
+          for t in $(az datafactory trigger list -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --query "[].name" -o tsv); do
+            echo "Starting $t"
+            az datafactory trigger start -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --name $t
+          done
