@@ -70,4 +70,5 @@ jobs:
         run: |
           for t in $(az datafactory trigger list -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --query "[].name" -o tsv); do
             echo "Starting $t"
-            az datafactory trigger start -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --name
+            az datafactory trigger start -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --name $t
+          done
