@@ -2,7 +2,7 @@
 
 An end-to-end, production-style data engineering project that ingests, cleans, models and serves **20 million movie ratings** (MovieLens 20M) on Microsoft Azure.
 
-Built with **Azure Data Factory**, **ADLS Gen2**, **Mapping Data Flows (Spark)** and **Azure SQL Database**, following the **medallion architecture** (bronze → silver → gold) and a **Kimball star schema**, with orchestration, incremental loading, data quality gates, alerting and zero-secret security.
+Built with **Azure Data Factory**, **ADLS Gen2**, **Mapping Data Flows (Spark)** and **Azure SQL Database**, following the **medallion architecture** (bronze → silver → gold) and a **Kimball star schema**, with orchestration, incremental loading, data quality gates, alerting, zero-secret security and **CI/CD from dev to prod with GitHub Actions**.
 
 ---
 
@@ -17,7 +17,8 @@ Built with **Azure Data Factory**, **ADLS Gen2**, **Mapping Data Flows (Spark)**
 | **Performance** | 20M rows loaded into SQL in **5 min 19 s** (~60k rows/s); Parquet ~60% smaller than CSV |
 | **Data quality** | Assert rules, file existence checks, row-count quality gate on gold |
 | **Security** | **Zero stored secrets**: Managed Identity + RBAC + Azure Key Vault |
-| **DevOps** | ADF versioned in GitHub (Git mode), ARM templates generated on publish |
+| **CI/CD** | Separate dev and prod factories; GitHub Actions release workflow with **OIDC** (no stored credentials), trigger stop/start and automatic cleanup |
+| **Git workflow** | Feature branches, pull requests and merge to `main`; production is never edited by hand |
 
 ---
 
@@ -73,7 +74,7 @@ flowchart LR
 | `pl_incremental_fact_rating` | Watermark-based incremental load of the 20M-row fact table |
 | `pl_build_gold_aggregates` | Builds pre-computed aggregate tables with Join + Aggregate |
 
-**Triggers:** weekly schedule trigger (Sunday 03:00, Casablanca time). A storage-event pattern with a `_READY` marker file was also designed to avoid one run per file.
+**Triggers:** weekly schedule trigger (Sunday 03:00, Casablanca time) that runs **only in the production factory**; the dev factory is used for debug runs. A storage-event pattern with a `_READY` marker file was also designed to avoid one run per file.
 
 ---
 
@@ -162,6 +163,38 @@ Azure Monitor metric alert on failed pipeline runs with an email action group, t
 - ADF → ADLS Gen2: **system-assigned managed identity** with `Storage Blob Data Contributor`
 - ADF → Azure SQL: managed identity mapped to a contained database user with `db_datareader`, `db_datawriter`, `db_ddladmin` (least privilege, no `db_owner`)
 - External secrets (API keys) in **Azure Key Vault** with RBAC: `Secrets Officer` for the admin, `Secrets User` (read-only) for ADF
+- GitHub Actions → Azure: **OIDC federated credential** bound to this repository's `main` branch (immutable owner and repository IDs), with `Data Factory Contributor` only
+- Power BI → Azure SQL: dedicated **read-only** database user (`db_datareader`), separate from the pipeline identity
+
+---
+
+## 🚀 CI/CD: dev → prod
+
+Development happens in a **Git-integrated dev factory**. Production is a **separate factory with no Git connection** that is only changed by the release workflow.
+
+```mermaid
+flowchart LR
+    DEV["Dev factory<br/>(Git: main)"] -->|Save all| MAIN["GitHub<br/>main branch"]
+    MAIN -->|Publish| PUB["adf_publish<br/>ARM templates"]
+    PUB --> GA["GitHub Actions<br/>release workflow"]
+    GA -->|OIDC login| AZ["Azure"]
+    AZ --> PROD["Prod factory<br/>(no Git, triggers on)"]
+```
+
+**Development flow:** create a feature branch in ADF Studio → change and debug → open a **pull request** → review → merge to `main` → **Publish** (only allowed from `main`), which generates ARM templates in `adf_publish`.
+
+**Release workflow** ([`.github/workflows/deploy-adf-prod.yml`](.github/workflows/deploy-adf-prod.yml)), started manually:
+
+| Step | What it does | Why |
+|---|---|---|
+| 1. Checkout `adf_publish` | Gets the ARM template of the whole factory | The template is the single source for the release |
+| 2. Login (OIDC) | Federated credential, short-lived token | No client secret stored anywhere |
+| 3. Stop prod triggers | Stops running schedules | A pipeline must not start mid-deployment |
+| 4. Deploy ARM template | Deploys with `factoryName=alaaNetflixDF-prod` override | Same definition, different environment |
+| 5. Remove objects deleted in dev | Deletes prod pipelines, data flows and datasets missing from the template | Incremental ARM deployments never delete; a **safety guard** skips deletion if the template can't be read |
+| 6. Start prod triggers | Restarts schedules | Production resumes automatically |
+
+> For cost reasons, prod shares the storage account and database with dev. In a real setup each environment has its own resource group and resources, injected through ARM parameter overrides.
 
 ---
 
@@ -177,6 +210,9 @@ Azure Monitor metric alert on failed pipeline runs with an email action group, t
 | **Expression bugs** | `BadRequest` with no message | `@@` (escaped `@`) and leading spaces turning expressions into literal text | Always check the first character of dynamic content |
 | **Fan-out in joins** | Inflated counts when joining genres | One rating × N genres | Aggregate before joining, `EXISTS` semi-joins, allocation |
 | **Cloud constraints** | Region and free-tier provisioning errors | Student subscription region policy | Picked a supported region; same region for storage and SQL |
+| **Alert never fired** | Pipeline failed, no alert | Metric alert dimensions "select all" only captured the values that existed at creation (no failures yet) | Removed dimension filters: one series covering every pipeline, also cheaper |
+| **Objects lingering in prod** | Pipeline deleted in dev still present in prod after release | ARM deployments are incremental by default and never delete | Added a cleanup step comparing prod with the template, with a safety guard |
+| **Fix not deployed** | Corrected workflow still ran the old steps | "Re-run" replays the original commit's workflow file | Start a new run so the latest `main` version is used |
 
 ---
 
@@ -216,13 +252,15 @@ FROM ranked WHERE rn = 1 ORDER BY genre;
 
 ## 🧰 Tech stack
 
-**Azure Data Factory** (pipelines, Mapping Data Flows, triggers, Git integration) · **ADLS Gen2** · **Azure SQL Database** (serverless, columnstore) · **Azure Key Vault** · **Azure Monitor** · **Microsoft Entra ID** (managed identities, RBAC) · **SQL** (T-SQL, window functions, CTEs) · **GitHub**
+**Azure Data Factory** (pipelines, Mapping Data Flows, triggers, Git integration) · **ADLS Gen2** · **Azure SQL Database** (serverless, columnstore) · **Azure Key Vault** · **Azure Monitor** · **Microsoft Entra ID** (managed identities, RBAC, OIDC federation) · **ARM templates** · **GitHub Actions** · **Power BI** (DAX) · **SQL** (T-SQL, window functions, CTEs) · **Git / GitHub**
 
 ---
 
 ## 📁 Repository structure
 
 ```
+├── .github/workflows/
+│   └── deploy-adf-prod.yml   # release workflow: dev → prod
 ├── adf/                    # ADF resources, auto-synced by Git integration
 │   ├── pipeline/
 │   ├── dataflow/
@@ -251,9 +289,10 @@ FROM ranked WHERE rn = 1 ORDER BY genre;
 
 ## 🗺️ Roadmap
 
-- [ ] CI/CD: dev → prod deployment with GitHub Actions and ARM templates, global parameters
+- [x] CI/CD: dev → prod deployment with GitHub Actions, OIDC and ARM templates
+- [ ] Separate prod resources (storage, SQL, Key Vault) and global parameters
 - [ ] Infrastructure as Code with **Bicep**
-- [ ] Power BI dashboard on the gold star schema
+- [ ] Power BI dashboard on the gold star schema (in progress: model, DAX measures, overview page done)
 - [ ] dbt models and tests on top of gold
 - [ ] Ingest movie metadata from the **TMDB REST API** (secrets in Key Vault)
 - [ ] Migration to **Microsoft Fabric** (Lakehouse + notebooks)
