@@ -1,10 +1,10 @@
 name: Deploy ADF to PROD
 
 on:
-  workflow_dispatch:            # bouton "Run workflow" (release manuel)
+  workflow_dispatch:
 
 permissions:
-  id-token: write               # darouri l OIDC (login bla password)
+  id-token: write
   contents: read
 
 env:
@@ -44,9 +44,30 @@ jobs:
           parameters: ${{ env.ARM_FOLDER }}/ARMTemplateParametersForFactory.json factoryName=${{ env.PROD_FACTORY }}
           deploymentName: adf-prod-${{ github.run_number }}
 
+      - name: Remove objects deleted in dev
+        run: |
+          SUB=$(az account show --query id -o tsv)
+          BASE="https://management.azure.com/subscriptions/$SUB/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$PROD_FACTORY"
+          TEMPLATE="$ARM_FOLDER/ARMTemplateForFactory.json"
+          for kind in pipelines dataflows datasets; do
+            expected=$(jq -r --arg t "Microsoft.DataFactory/factories/$kind" \
+              '.resources[] | select(.type==$t) | .name' "$TEMPLATE" \
+              | sed -E "s/.*'\/([^']+)'.*/\1/")
+            if [ -z "$expected" ]; then
+              echo "Safety stop: no $kind found in template, skipping"
+              continue
+            fi
+            actual=$(az rest --method get --url "$BASE/$kind?api-version=2018-06-01" --query "value[].name" -o tsv)
+            for name in $actual; do
+              if ! grep -qx "$name" <<< "$expected"; then
+                echo "Deleting $kind/$name (not in dev anymore)"
+                az rest --method delete --url "$BASE/$kind/$name?api-version=2018-06-01"
+              fi
+            done
+          done
+
       - name: Start PROD triggers
         run: |
           for t in $(az datafactory trigger list -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --query "[].name" -o tsv); do
             echo "Starting $t"
-            az datafactory trigger start -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --name $t
-          done
+            az datafactory trigger start -g $RESOURCE_GROUP --factory-name $PROD_FACTORY --name
