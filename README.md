@@ -2,7 +2,7 @@
 
 An end-to-end, production-style data engineering project that ingests, cleans, models and serves **20 million movie ratings** (MovieLens 20M) on Microsoft Azure.
 
-Built with **Azure Data Factory**, **ADLS Gen2**, **Mapping Data Flows (Spark)** and **Azure SQL Database**, following the **medallion architecture** (bronze → silver → gold) and a **Kimball star schema**, with orchestration, incremental loading, data quality gates, alerting, zero-secret security and **CI/CD from dev to prod with GitHub Actions**.
+Built with **Azure Data Factory**, **ADLS Gen2**, **Mapping Data Flows (Spark)** and **Azure SQL Database**, following the **medallion architecture** (bronze → silver → gold) and a **Kimball star schema**, with orchestration, incremental loading, data quality gates, alerting, zero-secret security, **CI/CD from dev to prod with GitHub Actions** and **infrastructure managed with Terraform**.
 
 ---
 
@@ -18,7 +18,18 @@ Built with **Azure Data Factory**, **ADLS Gen2**, **Mapping Data Flows (Spark)**
 | **Data quality** | Assert rules, file existence checks, row-count quality gate on gold |
 | **Security** | **Zero stored secrets**: Managed Identity + RBAC + Azure Key Vault |
 | **CI/CD** | Separate dev and prod factories; GitHub Actions release workflow with **OIDC** (no stored credentials), trigger stop/start and automatic cleanup |
+| **Infrastructure as Code** | Existing Azure resources **imported into Terraform**; remote state with locking; `terraform plan` runs on every pull request |
 | **Git workflow** | Feature branches, pull requests and merge to `main`; production is never edited by hand |
+
+---
+
+## 📊 Power BI dashboard
+
+![Overview dashboard](images/dashboard_overview.png)
+
+Import-mode model on the gold star schema (fact → movie and date dimensions, genre bridge with two-way filtering), DAX measures (`Total Ratings`, `Avg Rating`, `Active Users`, `Weekend Share` with `CALCULATE`), genre slicer and a Netflix-style theme. Read access uses a dedicated read-only SQL user.
+
+**Insights:** ratings are spread almost evenly across the week (weekend share 27.6% vs 28.6% expected), with Monday and Tuesday slightly ahead of Saturday; Horror averages 3.28 vs 3.53 overall; 2015 contains January–March only, so its drop is a partial period, not a trend.
 
 ---
 
@@ -198,6 +209,34 @@ flowchart LR
 
 ---
 
+## 🏗️ Infrastructure as Code: Terraform
+
+The platform was first built in the Azure portal, then **brought under Terraform without recreating anything**: each resource was imported with `import` blocks, and the configuration was written to match what was already deployed (`terraform plan` → *No changes*).
+
+| Managed by Terraform | Notes |
+|---|---|
+| Resource group | Standardized tags (`environment`, `owner`, `project`, `managed_by`) |
+| ADLS Gen2 storage account | `prevent_destroy`, no public blob access, TLS 1.2 |
+| 5 medallion containers | One `for_each` resource over `landing`, `bronze`, `silver`, `gold`, `config` |
+| Key Vault | RBAC authorization, `prevent_destroy` |
+| Dev and prod Data Factories | System-assigned identities; dev keeps its GitHub integration |
+
+```mermaid
+flowchart LR
+    PR["Pull request<br/>infra/*.tf"] --> GA["GitHub Actions<br/>(OIDC)"]
+    GA --> F["fmt"] --> V["validate"] --> P["plan"]
+    P <--> S["Remote state<br/>Azure Storage + lock"]
+```
+
+- **Remote state** in a dedicated storage account (`tfstate` container) with blob-lease locking, Entra ID authentication and versioning. It is kept outside the resources Terraform manages to avoid the state deleting itself.
+- **CI on every PR** ([`.github/workflows/terraform-plan.yml`](.github/workflows/terraform-plan.yml)): `fmt -check`, `validate` and `plan`, authenticated through an OIDC credential scoped to pull requests, with read-only roles (`Reader`, `Reader and Data Access`) plus blob access on the state account for locking.
+- **Apply stays manual** after review, from a saved plan (`plan -out` → `apply tfplan`) so exactly the reviewed changes are applied.
+- State files, plans and `tfvars` are excluded from Git.
+
+**What the import revealed** (invisible in the portal): misspelled tag keys with trailing spaces (`"Enviroment "`), a resource group in West Europe while the data lives in Central US, and the dev factory in East US, which is why its data flows ran on an East US integration runtime. Tags were fixed through Terraform; locations were left as-is because changing them forces resource replacement.
+
+---
+
 ## 🐛 Lessons learned (real bugs found and fixed)
 
 | Problem | Symptom | Root cause | Fix |
@@ -213,6 +252,9 @@ flowchart LR
 | **Alert never fired** | Pipeline failed, no alert | Metric alert dimensions "select all" only captured the values that existed at creation (no failures yet) | Removed dimension filters: one series covering every pipeline, also cheaper |
 | **Objects lingering in prod** | Pipeline deleted in dev still present in prod after release | ARM deployments are incremental by default and never delete | Added a cleanup step comparing prod with the template, with a safety guard |
 | **Fix not deployed** | Corrected workflow still ran the old steps | "Re-run" replays the original commit's workflow file | Start a new run so the latest `main` version is used |
+| **Generated Terraform rejected** | Imported config failed validation (`$account-encryption-key`, retention `0`) | Config generation copies Azure's internal defaults, which the provider doesn't accept as input | Wrote clean configuration by hand and confirmed it with *No changes* |
+| **OIDC login refused in CI** | `AADSTS700213: No matching federated identity record` | Owner and repository IDs swapped in the pull-request credential (new repos use immutable ID-based subjects) | Compared the subject in the error with the credential and recreated it from JSON |
+| **Impossible Power BI value** | Hamlet showed an average rating of 27 on a 5-star scale | Several films share the same cleaned title; the visual grouped by title and summed averages | Disabled summarization and grouped by the movie key; added sanity checks |
 
 ---
 
@@ -252,7 +294,7 @@ FROM ranked WHERE rn = 1 ORDER BY genre;
 
 ## 🧰 Tech stack
 
-**Azure Data Factory** (pipelines, Mapping Data Flows, triggers, Git integration) · **ADLS Gen2** · **Azure SQL Database** (serverless, columnstore) · **Azure Key Vault** · **Azure Monitor** · **Microsoft Entra ID** (managed identities, RBAC, OIDC federation) · **ARM templates** · **GitHub Actions** · **Power BI** (DAX) · **SQL** (T-SQL, window functions, CTEs) · **Git / GitHub**
+**Azure Data Factory** (pipelines, Mapping Data Flows, triggers, Git integration) · **ADLS Gen2** · **Azure SQL Database** (serverless, columnstore) · **Azure Key Vault** · **Azure Monitor** · **Microsoft Entra ID** (managed identities, RBAC, OIDC federation) · **Terraform** (azurerm, import, remote state) · **ARM templates** · **GitHub Actions** · **Power BI** (DAX) · **SQL** (T-SQL, window functions, CTEs) · **Git / GitHub**
 
 ---
 
@@ -260,8 +302,10 @@ FROM ranked WHERE rn = 1 ORDER BY genre;
 
 ```
 ├── .github/workflows/
-│   └── deploy-adf-prod.yml   # release workflow: dev → prod
+│   ├── deploy-adf-prod.yml   # release workflow: dev → prod
+│   └── terraform-plan.yml    # fmt, validate and plan on infra pull requests
 ├── adf/                    # ADF resources, auto-synced by Git integration
+├── infra/                  # Terraform: storage, containers, Key Vault, factories, backend
 │   ├── pipeline/
 │   ├── dataflow/
 │   ├── dataset/
@@ -290,9 +334,11 @@ FROM ranked WHERE rn = 1 ORDER BY genre;
 ## 🗺️ Roadmap
 
 - [x] CI/CD: dev → prod deployment with GitHub Actions, OIDC and ARM templates
-- [ ] Separate prod resources (storage, SQL, Key Vault) and global parameters
-- [ ] Infrastructure as Code with **Bicep**
-- [ ] Power BI dashboard on the gold star schema (in progress: model, DAX measures, overview page done)
+- [x] Infrastructure as Code with **Terraform** (import, remote state, plan on PRs)
+- [x] Power BI overview dashboard on the gold star schema (model, DAX measures, Netflix-style theme)
+- [ ] Bring Azure SQL and role assignments under Terraform
+- [ ] Separate prod resources (storage, SQL, Key Vault) in their own resource group
+- [ ] Terraform apply from CI with an approval gate
 - [ ] dbt models and tests on top of gold
 - [ ] Ingest movie metadata from the **TMDB REST API** (secrets in Key Vault)
 - [ ] Migration to **Microsoft Fabric** (Lakehouse + notebooks)
