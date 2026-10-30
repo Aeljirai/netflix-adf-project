@@ -6,13 +6,9 @@
 
 
 resource "azurerm_resource_group" "main" {
-  location   = "westeurope"
+  location = "westeurope"
 
-  name       = "rg-netflix-adf-dev"
-  tags = {
-    environment = "dev"
-    owner       = "Alae Eddine El Jirari"
-    project     = "netflix-movielens"
-    managed_by  = "terraform"
-  }
+  name = "rg-netflix-adf-dev"
+
+  tags = local.common_tags
 }
